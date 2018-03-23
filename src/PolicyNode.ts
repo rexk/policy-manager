@@ -1,16 +1,10 @@
-import { IAttributes } from './Attributes';
-import {
-  CheckResult,
-  fail,
-  success,
-  Failure,
-  mergeFailures,
-} from './CheckResult';
+import { Decision, deny, grant, AccessDenial } from './CheckResult';
 
 export type PolicyChecker<T> = (attributes: T) => boolean;
 
 export interface IPolicy<T> {
-  check(attributes: T): CheckResult;
+  check(attributes: T): Decision;
+  describe(): string;
 }
 
 export class PolicyStatement<T> implements IPolicy<T> {
@@ -22,64 +16,93 @@ export class PolicyStatement<T> implements IPolicy<T> {
     this.description = description;
   }
 
-  check(attributes: T): CheckResult {
+  check(attributes: T): Decision {
     try {
       const result = this.checker(attributes);
       if (!result) {
-        return fail(this.description);
+        return deny(this.description);
       }
 
-      return success();
+      return grant();
     } catch (err) {
-      return fail(err);
+      return deny(err);
     }
+  }
+
+  describe(): string {
+    return this.description;
   }
 }
 
-type AggregateChecker = (results: CheckResult[]) => boolean;
+type AggregateChecker = (results: Decision[]) => boolean;
 
-const AndCheck = (results: CheckResult[]) => results.every(r => r.granted);
-const OrCheck = (results: CheckResult[]) => results.some(r => r.granted);
+const AndCheck = (results: Decision[]) => results.every(r => r.granted);
+const OrCheck = (results: Decision[]) => results.some(r => r.granted);
 
-export class JoinPolicy<T> implements IPolicy<T> {
+function concat<T>(items: T[][]): T[] {
+  return items.reduce((acc, item) => item.concat(item), []);
+}
+
+/**
+ * merges all reasons and errors. caused denials
+ *
+ * @param denials
+ */
+function mergeDenials(denials: AccessDenial[] = []): AccessDenial {
+  const reasons = concat(denials.map(f => f.reasons));
+  const errors = concat(denials.map(f => f.errors));
+  return {
+    granted: false,
+    reasons,
+    errors,
+  };
+}
+
+export class PolicyJoin<T> implements IPolicy<T> {
   readonly description: 'and' | 'or';
-  readonly children: IPolicy<T>[];
+  readonly policies: IPolicy<T>[];
   private readonly aggregate: AggregateChecker;
 
   constructor(
     description: 'and' | 'or',
-    children: IPolicy<T>[] = [],
+    policies: IPolicy<T>[] = [],
     aggreate: AggregateChecker,
   ) {
     this.description = description;
-    this.children = children;
+    this.policies = policies;
     this.aggregate = aggreate;
   }
 
   check(attributes: T) {
-    if (this.children.length === 0) {
-      return fail(
+    if (this.policies.length === 0) {
+      return deny(
         new Error(`Policy(${this.description} must have at least one child`),
       );
     }
 
-    const results = this.children.map(c => c.check(attributes));
+    const results = this.policies.map(c => c.check(attributes));
     const result = this.aggregate(results);
     if (!result) {
-      const failures = results.filter(f => f.granted === false) as Failure[];
-      return mergeFailures(failures);
+      const failures = results.filter(
+        f => f.granted === false,
+      ) as AccessDenial[];
+      return mergeDenials(failures);
     }
 
-    return success();
+    return grant();
   }
 
-  static and<T>(children: IPolicy<T>[]) {
-    return new JoinPolicy('and', children, AndCheck);
+  describe(): string {
+    return this.policies.map(p => p.describe()).join(` ${this.description}`);
   }
 
-  static or<T>(children: IPolicy<T>[]) {
-    return new JoinPolicy('or', children, OrCheck);
+  static and<T>(policies: IPolicy<T>[]) {
+    return new PolicyJoin('and', policies, AndCheck);
+  }
+
+  static or<T>(policies: IPolicy<T>[]) {
+    return new PolicyJoin('or', policies, OrCheck);
   }
 }
 
-export type PolicyNode<T> = PolicyStatement<T> | JoinPolicy<T>;
+export type PolicyNode<T> = PolicyStatement<T> | PolicyJoin<T>;

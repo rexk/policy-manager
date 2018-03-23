@@ -1,16 +1,16 @@
-export interface Success {
+export interface AccessGrant {
   granted: true;
 }
 
-export interface Failure {
+export interface AccessDenial {
   granted: false;
   reasons: string[];
   errors: Error[];
 }
 
-export type CheckResult = Success | Failure;
+export type Decision = AccessGrant | AccessDenial;
 
-export function fail(reason: string | Error): Failure {
+export function deny(reason: string | Error): AccessDenial {
   if (typeof reason === 'string') {
     return {
       granted: false,
@@ -32,21 +32,7 @@ export function fail(reason: string | Error): Failure {
   };
 }
 
-export function mergeFailures(fails: Failure[] = []): Failure {
-  const reasons = fails
-    .map(f => f.reasons)
-    .reduce((acc, reason) => acc.concat(reason), []);
-  const errors = fails
-    .map(f => f.errors)
-    .reduce((acc, err) => acc.concat(err), []);
-  return {
-    granted: false,
-    reasons,
-    errors,
-  };
-}
-
-export function success(): Success {
+export function grant(): AccessGrant {
   return {
     granted: true,
   };
