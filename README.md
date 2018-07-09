@@ -1,6 +1,6 @@
-# Policy Control
+# Policy Manager
 
-Policy control aims to aid Policy statements creation and management for ABAC using function and fluent API. 
+Provides a fluent API to create flexible and fluent API to create policies for ABAC.
 
 ## Getting started
 
@@ -16,8 +16,10 @@ yarn add policy-control
 
 ## Example
 
+We would like to inspect users at bar.
+
 ```ts
-import { Policy } from 'policy-control';
+import { Policy } from 'policy-manager';
 
 interface Attributes {
   role: 'faculty' | 'student' | 'parent';
@@ -25,7 +27,7 @@ interface Attributes {
 }
 
 const GuestOnly = Policy.of(
-  'User must be a guest',
+  'User must be a faculty member',
   (attr: Attributes) => attr.role === 'guest',
 );
 

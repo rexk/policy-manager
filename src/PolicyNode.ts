@@ -1,12 +1,23 @@
-import { Decision, deny, grant, AccessDenial } from './CheckResult';
+import { Decision, deny, grant, AccessDenial } from './AccessDecision';
+
+export type AggregateChecker = (results: Decision[]) => boolean;
+
+const AndCheck = (results: Decision[]) => results.every(r => r.granted);
+const OrCheck = (results: Decision[]) => results.some(r => r.granted);
+
+function concat<T>(items: T[][]): T[] {
+  return items.reduce((acc, item) => item.concat(item), []);
+}
 
 export type PolicyChecker<T> = (attributes: T) => boolean;
 
 export interface IPolicy<T> {
   check(attributes: T): Decision;
-  describe(): string;
 }
 
+/**
+ * PolicyStatement represents a Policy as a single boolean expression.
+ */
 export class PolicyStatement<T> implements IPolicy<T> {
   private readonly checker: PolicyChecker<T>;
   readonly description: string;
@@ -28,19 +39,6 @@ export class PolicyStatement<T> implements IPolicy<T> {
       return deny(err);
     }
   }
-
-  describe(): string {
-    return this.description;
-  }
-}
-
-type AggregateChecker = (results: Decision[]) => boolean;
-
-const AndCheck = (results: Decision[]) => results.every(r => r.granted);
-const OrCheck = (results: Decision[]) => results.some(r => r.granted);
-
-function concat<T>(items: T[][]): T[] {
-  return items.reduce((acc, item) => item.concat(item), []);
 }
 
 /**
@@ -58,6 +56,9 @@ function mergeDenials(denials: AccessDenial[] = []): AccessDenial {
   };
 }
 
+/**
+ * PolicyNode that combines multiple other PolicyNode
+ */
 export class PolicyJoin<T> implements IPolicy<T> {
   readonly description: 'and' | 'or';
   readonly policies: IPolicy<T>[];
@@ -66,11 +67,11 @@ export class PolicyJoin<T> implements IPolicy<T> {
   constructor(
     description: 'and' | 'or',
     policies: IPolicy<T>[] = [],
-    aggreate: AggregateChecker,
+    aggregate: AggregateChecker,
   ) {
     this.description = description;
     this.policies = policies;
-    this.aggregate = aggreate;
+    this.aggregate = aggregate;
   }
 
   check(attributes: T) {
@@ -90,10 +91,6 @@ export class PolicyJoin<T> implements IPolicy<T> {
     }
 
     return grant();
-  }
-
-  describe(): string {
-    return this.policies.map(p => p.describe()).join(` ${this.description}`);
   }
 
   static and<T>(policies: IPolicy<T>[]) {

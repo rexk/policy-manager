@@ -27,7 +27,7 @@ export function deny(reason: string | Error): AccessDenial {
 
   return {
     granted: false,
-    reasons: [],
+    reasons: ['Unknown Error'],
     errors: [],
   };
 }

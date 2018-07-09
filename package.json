@@ -1,8 +1,9 @@
 {
-  "name": "policy-control",
+  "name": "policy-manager",
   "version": "1.0.0",
-  "description": "Attributed Based Access Control with a Policy",
+  "description": "Policy management API for ABAC",
   "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
   "author": "<rex> myungsunrex@gmail.com",
   "license": "MIT",
   "devDependencies": {

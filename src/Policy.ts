@@ -4,7 +4,7 @@ import {
   PolicyChecker,
   PolicyStatement,
 } from './PolicyNode';
-import { Decision } from './CheckResult';
+import { Decision } from './AccessDecision';
 
 /**
  * Policy helps to create policies using a function in which
@@ -15,12 +15,18 @@ import { Decision } from './CheckResult';
  * @typeparam Attributes  A generic Attributes to be used to construct policies.
  */
 export class Policy<Attributes> {
-  private readonly node: PolicyNode<Attributes>;
+  readonly node: PolicyNode<Attributes>;
 
   protected constructor(node: PolicyNode<Attributes>) {
     this.node = node;
   }
 
+  /**
+   * Checks if given Attributes (Rule Parameters) satisfy this policy.
+   *
+   * @param {Attributes} attributes   A attributes to be inspected.
+   * @return {Decision}
+   */
   check(attributes: Attributes): Decision {
     return this.node.check(attributes);
   }
@@ -51,19 +57,28 @@ export class Policy<Attributes> {
     return new Policy(PolicyJoin.or(nodes));
   }
 
-  describe(): string {
-    return this.node.describe();
-  }
-
+  /**
+   * Creates a Policy using description and checker.
+   * @param description
+   * @param checker
+   */
   static of<T>(description: string, checker: PolicyChecker<T>) {
     return new Policy(new PolicyStatement(description, checker));
   }
 
+  /**
+   * Groups multiple policies with AND operator.
+   *
+   * @param {Policy[]} policies
+   */
   static and<T>(...policies: Policy<T>[]) {
     const nodes = policies.map(p => p.node);
     return new Policy(PolicyJoin.and(nodes));
   }
 
+  /**
+   * Groups multiple policies with OR operator.
+   */
   static or<T>(...policies: Policy<T>[]) {
     const nodes = policies.map(p => p.node);
     return new Policy(PolicyJoin.or(nodes));

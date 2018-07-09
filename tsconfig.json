@@ -5,6 +5,8 @@
     "rootDir": "src",
     "outDir": "lib",
     "strictNullChecks": true,
+    "inlineSourceMap": true,
+    "declaration": true,
     "strictPropertyInitialization": true,
     "lib": ["esnext"],
     "esModuleInterop": true
